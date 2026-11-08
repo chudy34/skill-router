@@ -23,6 +23,14 @@ export type ModelPlan = {
   subagent: boolean
 }
 
+// Propozycja poprawy promptu: generowana przez Sonneta, przyjęta przez użytkownika albo nie.
+export type Improve = {
+  why: string
+  status: 'loading' | 'ready' | 'failed'
+  text: string
+  accepted: boolean
+}
+
 export type Pending = {
   text: string
   suggestions: Suggestion[]
@@ -34,6 +42,7 @@ export type Pending = {
   limits: Limit[]
   contextTokens: number
   needsSearch: boolean
+  improve: Improve | null
 }
 
 // Kandydat z katalogu zewnętrznego wraz z wynikiem audytu.
@@ -62,6 +71,7 @@ declare module 'claude-code' {
       searching: boolean
       note: string
       currentEffort: string | null
+      improveOpen: boolean
     }
   }
 }

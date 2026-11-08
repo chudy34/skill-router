@@ -8,9 +8,11 @@ import { auditSkill, describeSkill, fetchSkillMd, findSkills, rankCandidates } f
 
 const PLUGIN = 'skill-router'
 const PANE = 'skill-router'
+// Gdy router uzna prompt za niejasny, odliczanie wydłuża się o tyle sekund na decyzję o poprawie.
+const IMPROVE_EXTRA = 10
 
 // Zmień tag, gdy zmienia się kształt Pending: stara wartość po przeładowaniu zostanie odrzucona.
-const pending = atom({ plugin: 'skill-router', key: 'pending' } as const, null, { shape: 'pending-3' })
+const pending = atom({ plugin: 'skill-router', key: 'pending' } as const, null, { shape: 'pending-4' })
 const note = atom({ plugin: 'skill-router', key: 'note' } as const, '')
 const selected = atom({ plugin: 'skill-router', key: 'selected' } as const, [])
 const paused = atom({ plugin: 'skill-router', key: 'paused' } as const, false)
@@ -19,9 +21,10 @@ const sessionModel = atom({ plugin: 'skill-router', key: 'sessionModel' } as con
 const currentEffort = atom({ plugin: 'skill-router', key: 'currentEffort' } as const, null as string | null)
 const external = atom({ plugin: 'skill-router', key: 'external' } as const, [] as ExternalItem[], { shape: 'ext-1' })
 const searching = atom({ plugin: 'skill-router', key: 'searching' } as const, false)
+const improveOpen = atom({ plugin: 'skill-router', key: 'improveOpen' } as const, false)
 
-type Settings = { enabled: boolean; base: number; per: number; firstExtra: number; auto: boolean }
-const DEFAULTS: Settings = { enabled: true, base: 3, per: 3, firstExtra: 5, auto: true }
+type Settings = { enabled: boolean; base: number; per: number; modelWait: number; auto: boolean }
+const DEFAULTS: Settings = { enabled: true, base: 15, per: 5, modelWait: 15, auto: true }
 
 type McpEntry = { server: string; tools: string[] }
 type Catalog = { skills: { name: string; desc: string }[]; mcp: McpEntry[] }
@@ -149,6 +152,8 @@ async function route(
     'Zasady: proponuj tylko narzędzia z katalogu, najwyżej 3, tylko z trafnością >= 3.',
     'direct=true, gdy prompt wprost nazywa to narzędzie albo jednoznacznie na nie wskazuje. Takie narzędzie wstaw jako pierwsze, z stars 5 i direct=true. Pozostałe mają direct=false.',
     '"need":"none"|"local"|"external"|"model" (jedno słowo): none = zwykłe pytanie lub praca w kodzie bez narzędzi; local = wystarczy zainstalowany skill albo MCP; external = potrzebne konkretne narzędzie, którego użytkownik może nie mieć; model = tylko warto zmienić model.',
+    '"clarity":"clear"|"vague" — "vague" tylko gdy prompt jest niejasny lub zbyt ogólny i poprawka wyraźnie pomoże (brak celu, kontekstu, ograniczeń). Zwykłe, jasne polecenie to "clear".',
+    '"improveWhy": 1-2 zdania po polsku, max 160 znaków: co konkretnie doprecyzowano i czemu to pomaga. Pusty string, gdy clarity="clear".',
     'Pusta lista, gdy nic nie pasuje.',
   ].join('\n')
   const situation = [
@@ -210,8 +215,68 @@ async function send($: EngineInterface, mode: 'plain' | 'default' | 'plan') {
   await update($, pending, () => null)
   await update($, selected, () => [])
   await update($, paused, () => false)
+  const sendText = p.improve?.accepted && p.improve.text ? p.improve.text : p.text
   await $.ui.close({ id: PANE })
-  await $.prompt.submit({ text: p.text, asUser: true })
+  await update($, improveOpen, () => false)
+  await $.prompt.submit({ text: sendText, asUser: true })
+}
+
+const IMPROVE_RULES = [
+  'Poprawiasz prompt użytkownika dla agenta AI. Zachowaj intencję, język i wszystkie konkretne dane.',
+  'Doprecyzuj cel, oczekiwany wynik i brakujące ograniczenia tylko tam, gdzie wynikają z tekstu. Nie dodawaj nowych wymagań ani nazw narzędzi.',
+  'Zwróć WYŁĄCZNIE JSON: {"why":"1-2 zdania po polsku, max 160 znaków: co konkretnie doprecyzowano i czemu to pomaga","prompt":"poprawiony prompt"}.',
+].join('\n')
+
+// Poprawka jednym wywołaniem Sonneta. Wynik trafia do pending, a panel go tylko pokazuje.
+async function startImprove($: EngineInterface, original: string) {
+  const r = await $.model.complete({
+    model: 'sonnet',
+    effort: 'low',
+    maxTokens: 900,
+    timeoutMs: 30000,
+    system: IMPROVE_RULES,
+    prompt: `PROMPT UŻYTKOWNIKA:\n${original.slice(0, 4000)}`,
+  })
+  const v = r.isAnswered ? (parseJson(r.text) as Record<string, unknown> | null) : null
+  const text = str(v?.prompt, 4000).trim()
+  const why = str(v?.why, 200).trim()
+  await update($, pending, cur =>
+    cur && cur.improve
+      ? { ...cur, improve: text ? { ...cur.improve, status: 'ready' as const, text, why: why || cur.improve.why } : { ...cur.improve, status: 'failed' as const } }
+      : cur,
+  )
+}
+
+// Przycisk „Popraw prompt”: gdy poprawki nie było (prompt jasny), generuje ją teraz.
+async function openImprove($: EngineInterface) {
+  const p = await read($, pending)
+  if (!p) return
+  await update($, paused, () => true)
+  if (!p.improve) {
+    await update($, pending, cur => (cur ? { ...cur, improve: { why: '', status: 'loading' as const, text: '', accepted: false } } : cur))
+    void startImprove($, p.text)
+  }
+  await update($, improveOpen, () => true)
+}
+
+async function acceptImprove($: EngineInterface) {
+  const p = await read($, pending)
+  if (!p || !p.improve || p.improve.status !== 'ready') return
+  await update($, pending, cur => (cur && cur.improve ? { ...cur, improve: { ...cur.improve, accepted: true } } : cur))
+  await update($, improveOpen, () => false)
+}
+
+async function rejectImprove($: EngineInterface) {
+  await update($, pending, cur => (cur ? { ...cur, improve: null } : cur))
+  await update($, improveOpen, () => false)
+}
+
+// Zatwierdź i wyślij: poprawiony tekst z proponowanym modelem, a gdy modelu nie ma, z bieżącym.
+async function acceptAndSend($: EngineInterface) {
+  const p = await read($, pending)
+  if (!p || !p.improve || p.improve.status !== 'ready') return
+  await acceptImprove($)
+  await send($, p.plan ? 'plan' : 'default')
 }
 
 async function tick($: EngineInterface) {
@@ -233,12 +298,8 @@ async function tick($: EngineInterface) {
     await update($, now, () => t)
   }
   if (t >= p.deadline) {
-    // Pierwszy prompt: po czasie proponowany model, bez dodatkowych skilli. Kolejny: bez zmian.
-    if (p.isFirst && p.plan && !p.plan.subagent) {
-      await send($, 'plan')
-    } else {
-      await send($, 'plain')
-    }
+    // Po czasie zawsze bez zmian: model sesji zostaje, idą tylko narzędzia wskazane wprost.
+    await send($, 'plain')
   }
 }
 
@@ -378,7 +439,7 @@ export const register: Register = on => {
     if (args[0] === 'auto') settings = { ...settings, auto: args[1] !== 'off' }
     await $.store.set('settings', settings)
     return {
-      text: `Skill Router: ${settings.enabled ? 'włączony' : 'wyłączony'}, czas ${settings.base} s + ${settings.per} s na propozycję (+${settings.firstExtra} s przy pierwszym prompcie).`,
+      text: `Skill Router: ${settings.enabled ? 'włączony' : 'wyłączony'}, czas ${settings.base} s + ${settings.per} s na propozycję, ${settings.modelWait} s na wybór modelu.`,
     }
   })
 
@@ -470,9 +531,12 @@ export const register: Register = on => {
     const need = typeof out.need === 'string' ? out.need : 'none'
     const needsSearch = settings.auto && need === 'external' && !suggestions.some(s => s.direct || s.stars >= 4)
 
-    if (suggestions.length === 0 && !plan && !needsSearch) return next(e)
+    const vague = out.clarity === 'vague'
+    if (suggestions.length === 0 && !plan && !needsSearch && !vague) return next(e)
 
-    const total = settings.base + settings.per * Math.max(1, suggestions.length) + (isFirst ? settings.firstExtra : 0)
+    // Karta modelu daje modelWait sekund; bez niej bazowy czas plus propozycje. Poprawka wydłuża odliczanie.
+    const base = plan ? settings.modelWait : settings.base + settings.per * suggestions.length
+    const total = base + (vague ? IMPROVE_EXTRA : 0)
     const t = await $.clock.now()
     const p: Pending = {
       text: e.text,
@@ -485,6 +549,7 @@ export const register: Register = on => {
       limits,
       contextTokens,
       needsSearch,
+      improve: vague ? { why: str(out.improveWhy, 200), status: 'loading', text: '', accepted: false } : null,
     }
     // Narzędzia wskazane wprost w prompcie są od razu zaznaczone.
     await update($, selected, () => suggestions.filter(s => s.direct).map(s => s.id))
@@ -492,6 +557,8 @@ export const register: Register = on => {
     await update($, now, () => t)
     await update($, pending, () => p)
     await $.ui.open({ id: PANE, title: 'Skill Router' })
+    // Poprawka startuje od razu po routingu i liczy się w tle, w czasie odliczania.
+    if (vague) void startImprove($, e.text)
     return { drop: 'Skill Router: wybierz propozycję w panelu obok albo poczekaj, prompt wyśle się sam.' }
   }).catch(($, e, next) => next(e)) // błąd routera nigdy nie blokuje prompta
 
@@ -505,7 +572,8 @@ export const register: Register = on => {
     const t = await read($, now)
     const extItems = await read($, external)
     const curEffort = await read($, currentEffort)
-    const left = Math.max(0, Math.ceil((p.deadline - t) / 1000))
+    const improving = await read($, improveOpen)
+    const left =Math.max(0, Math.ceil((p.deadline - t) / 1000))
     const plan = p.plan
     const picked = p.suggestions.filter(s => sel.includes(s.id)).length + extItems.filter(x => sel.includes(x.id)).length
     const fiveH = p.limits.find(l => l.kind === 'five_hour')
@@ -542,6 +610,43 @@ export const register: Register = on => {
       : p.isFirst
         ? `Szacunek: ok. ${savePct}% taniej za token.`
         : `Szacunek: ok. ${savePct}% taniej za token; przełączenie ~${switchUsd.toFixed(2).replace('.', ',')} $ (wczyta ${Math.round(p.contextTokens / 1000)} tys. tokenów).`
+    // Poprawa otwarta: zamiast karty modelu pokazujemy porównanie i decyzję, nad polem wpisywania.
+    if (improving && p.improve) {
+      const imp = p.improve
+      const sendLabel = plan ? `Zatwierdź i wyślij (${plan.label}${plan.effort ? ` · ${plan.effort}` : ''})` : 'Zatwierdź i wyślij'
+      const body =
+        imp.status === 'loading'
+          ? 'Przygotowuję poprawkę…'
+          : imp.status === 'failed'
+            ? 'Nie udało się poprawić. Odrzuć i spróbuj ponownie.'
+            : imp.text
+      return (
+        <Box flexDirection="column" paddingX={1} gap={1}>
+          <Text color="claude" bold>
+            Popraw prompt
+          </Text>
+          <Box flexDirection="row" gap={2}>
+            <Box flexGrow={1} flexDirection="column" gap={1}>
+              <Text size="caption" dimColor>
+                Co zmieni poprawka
+              </Text>
+              <Text>{imp.why || 'Model wyjaśni zmianę po wygenerowaniu.'}</Text>
+            </Box>
+            <Box flexGrow={1} flexDirection="column" gap={1}>
+              <Text size="caption" dimColor>
+                Poprawiony prompt
+              </Text>
+              <Text>{body}</Text>
+            </Box>
+          </Box>
+          <Box flexDirection="row" gap={1} justifyContent="flex-end">
+            <Button key="reject" hotkey="x" variant="secondary" label="Odrzuć" onPress={() => void rejectImprove($)} />
+            <Button key="accept" hotkey="a" variant="secondary" label="Zatwierdź" onPress={() => void acceptImprove($)} />
+            <Button key="acceptSend" hotkey="w" variant="primary" label={sendLabel} onPress={() => void acceptAndSend($)} />
+          </Box>
+        </Box>
+      )
+    }
     return (
       <Box flexDirection="column" paddingX={1} gap={0}>
         <Box flexDirection="row" alignItems="center" gap={1} marginBottom={1}>
@@ -605,10 +710,24 @@ export const register: Register = on => {
             </Box>
           </Box>
         )}
-        <Box flexDirection="row" gap={1} justifyContent="flex-end" marginTop={1}>
-          <Button key="plain" hotkey="b" label="Bez zmian" onPress={() => void send($, 'plain')} />
+        {p.improve && p.improve.why !== '' && <Text size="caption">{p.improve.why.slice(0, 160)}</Text>}
+        <Box flexDirection="row" alignItems="center" gap={1} marginTop={1}>
+          {p.improve && (
+            <Text bold color="warning">
+              Prompt można doprecyzować
+            </Text>
+          )}
+          <Box flexGrow={1} />
+          <Button
+            key="improve"
+            hotkey="o"
+            variant={p.improve ? 'primary' : 'secondary'}
+            label={p.improve?.status === 'loading' ? 'Poprawiam…' : 'Popraw prompt'}
+            onPress={() => void openImprove($)}
+          />
+          <Button key="plain" hotkey="b" variant={p.improve ? 'secondary' : 'primary'} label="Bez zmian" onPress={() => void send($, 'plain')} />
           <Button key="default" hotkey="d" label="Domyślnie" onPress={() => void send($, 'default')} />
-          {plan && <Button key="plan" hotkey="m" variant="primary" label={planLabel} onPress={() => void send($, 'plan')} />}
+          {plan && <Button key="plan" hotkey="m" label={planLabel} onPress={() => void send($, 'plan')} />}
         </Box>
       </Box>
     )
