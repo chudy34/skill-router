@@ -78,4 +78,4 @@ claude plugin validate .
 
 ## Licencja
 
-Licencja nie została jeszcze wybrana. Prawa należą do autora, dopóki nie zostanie dodana.
+Udostępnione na licencji MIT. Zobacz [LICENSE](LICENSE).
