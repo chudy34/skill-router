@@ -1,0 +1,5 @@
+{
+  "name": "skill-router",
+  "owner": { "name": "chudy34" },
+  "plugins": [{ "name": "skill-router", "source": "./" }]
+}

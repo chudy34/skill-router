@@ -1,0 +1,67 @@
+export type SuggestionKind = 'skill' | 'mcp'
+
+export type Suggestion = {
+  id: string
+  kind: SuggestionKind
+  name: string
+  title: string
+  reason: string
+  stars: number
+  starsWhy: string
+  role: string
+  group: string
+  direct: boolean
+}
+
+export type Limit = { kind: string; percentUsed: number; resetsAt?: string }
+
+export type ModelPlan = {
+  alias: string
+  label: string
+  effort?: string
+  why: string[]
+  subagent: boolean
+}
+
+export type Pending = {
+  text: string
+  suggestions: Suggestion[]
+  plan: ModelPlan | null
+  isFirst: boolean
+  deadline: number
+  total: number
+  currentLabel: string
+  limits: Limit[]
+  contextTokens: number
+  needsSearch: boolean
+}
+
+// Kandydat z katalogu zewnętrznego wraz z wynikiem audytu.
+export type ExternalItem = {
+  id: string
+  owner: string
+  repo: string
+  skill: string
+  installs: number
+  url: string
+  score: number
+  verdict: 'ok' | 'warn' | 'block' | 'pending'
+  reasons: string[]
+  content: string | null
+}
+
+declare module 'claude-code' {
+  interface PluginState {
+    'skill-router': {
+      pending: Shaped<Pending | null>
+      selected: string[]
+      paused: boolean
+      now: number
+      sessionModel: string | null
+      external: Shaped<ExternalItem[]>
+      searching: boolean
+      note: string
+      currentEffort: string | null
+    }
+  }
+}
