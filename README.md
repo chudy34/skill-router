@@ -54,7 +54,7 @@ claude plugin marketplace add chudy34/skill-router
 claude plugin install skill-router@skill-router
 ```
 
-The repository is private. Installation requires that your GitHub account has access and that GitHub is set up on your computer.
+The repository is public, so installing it does not require GitHub access.
 
 To update:
 
