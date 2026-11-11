@@ -21,6 +21,7 @@ Po naciśnięciu Enter rusza krótkie odliczanie. W jego trakcie możesz:
 | Wyślij z domyślnymi | `d` | Wysyła z narzędziami, które zaznaczyłeś |
 | Użyj proponowanego modelu | `m` | Przełącza model sesji na proponowany |
 | Popraw prompt | `o` | Otwiera widok przed/po nad polem wpisywania |
+| Skille | `s` | Otwiera panel boczny, gdy nie otworzył się sam, np. żeby szukać w katalogu |
 | Pauza / wznów | `p` | Zatrzymuje lub wznawia odliczanie |
 
 Po upływie czasu prompt idzie bez zmian (jak `b`). Domyślne czasy: 15 s na decyzję o modelu, 15 s plus 5 s za każdą propozycję w pozostałych przypadkach, a przy proponowanej poprawie dodatkowe 10 s.

@@ -266,6 +266,12 @@ async function acceptImprove($: EngineInterface) {
   await update($, improveOpen, () => false)
 }
 
+// Przycisk „Skille”: panel boczny na żądanie (np. ręczne szukanie w katalogu). Odliczanie staje.
+async function openPane($: EngineInterface) {
+  await update($, paused, () => true)
+  await $.ui.open({ id: PANE, title: 'Skill Router' })
+}
+
 async function rejectImprove($: EngineInterface) {
   await update($, pending, cur => (cur ? { ...cur, improve: null } : cur))
   await update($, improveOpen, () => false)
@@ -393,6 +399,8 @@ async function runSearchInner($: EngineInterface, query: string) {
   )
   await update($, external, () => items)
   await update($, searching, () => false)
+  // Wyniki z katalogu to coś do wyboru: panel otwiera się, jeśli jeszcze go nie ma.
+  if (await read($, pending)) await $.ui.open({ id: PANE, title: 'Skill Router' })
   for (const [i, it] of items.entries()) {
     const text = texts.get(ranked[i]!.key) ?? null
     if (text === null) {
@@ -556,10 +564,17 @@ export const register: Register = on => {
     await update($, paused, () => false)
     await update($, now, () => t)
     await update($, pending, () => p)
-    await $.ui.open({ id: PANE, title: 'Skill Router' })
+    // Panel boczny tylko gdy jest w nim coś do wyboru: propozycje albo szukanie w katalogu.
+    // Sam wybór modelu i poprawa promptu są w pasku nad polem.
+    const hasPane = suggestions.length > 0 || needsSearch
+    if (hasPane) await $.ui.open({ id: PANE, title: 'Skill Router' })
     // Poprawka startuje od razu po routingu i liczy się w tle, w czasie odliczania.
     if (vague) void startImprove($, e.text)
-    return { drop: 'Skill Router: wybierz propozycję w panelu obok albo poczekaj, prompt wyśle się sam.' }
+    return {
+      drop: hasPane
+        ? 'Skill Router: wybierz propozycję w panelu obok albo poczekaj, prompt wyśle się sam.'
+        : 'Skill Router: wybierz opcję nad polem albo poczekaj, prompt wyśle się sam.',
+    }
   }).catch(($, e, next) => next(e)) // błąd routera nigdy nie blokuje prompta
 
   // Pasek nad polem: model w stylu karty, wysyłka i Wznów. Zaznaczenia są w panelu bocznym.
@@ -718,6 +733,9 @@ export const register: Register = on => {
             </Text>
           )}
           <Box flexGrow={1} />
+          {p.suggestions.length === 0 && extItems.length === 0 && (
+            <Button key="skills" hotkey="s" variant="secondary" label="Skille" onPress={() => void openPane($)} />
+          )}
           <Button
             key="improve"
             hotkey="o"

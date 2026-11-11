@@ -21,6 +21,7 @@ After you press Enter, a short countdown starts. Inside it you can:
 | Send with defaults | `d` | Sends with the tools you selected |
 | Use the suggested model | `m` | Switches the session model to the suggested one |
 | Improve the prompt | `o` | Opens a before/after view above the input |
+| Skills panel | `s` | Opens the side panel when it did not open by itself, e.g. to search the catalog |
 | Pause / resume | `p` | Stops or restarts the countdown |
 
 When the countdown runs out, the prompt is sent as is (`b`). The timing defaults are 15 s for the model decision, 15 s plus 5 s per suggestion otherwise, and +10 s when a prompt improvement is offered.

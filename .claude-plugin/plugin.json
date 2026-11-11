@@ -1,6 +1,6 @@
 {
   "name": "skill-router",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Proponuje pasujące skille, MCP i model w pasku nad polem prompta, z odliczaniem.",
   "types": "./types/index.d.ts"
 }
