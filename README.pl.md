@@ -27,6 +27,7 @@ Po naciśnięciu Enter rusza krótkie odliczanie. W jego trakcie możesz:
 | Popraw prompt | `o` | Otwiera widok przed/po nad polem wpisywania |
 | Skille | `s` | Otwiera panel boczny, gdy nie otworzył się sam, np. żeby szukać w katalogu |
 | Pauza / wznów | `p` | Zatrzymuje lub wznawia odliczanie |
+| Ustawienia | `u` | Otwiera panel ustawień (przycisk ⚙) |
 
 Po upływie czasu prompt idzie bez zmian (jak `b`). Domyślne czasy: 15 s na decyzję o modelu, 15 s plus 5 s za każdą propozycję w pozostałych przypadkach, a przy proponowanej poprawie dodatkowe 10 s.
 
@@ -42,8 +43,13 @@ Ręcznie: `/router lang pl`, `/router lang en` albo z powrotem `/router lang aut
 
 Kolejny język to jeden słownik więcej w `hooks/i18n.ts` z tymi samymi kluczami.
 
+## Ustawienia
+
+`/router` bez argumentów albo przycisk ⚙ w pasku otwiera panel ustawień. Ustawisz w nim język (Auto, Polski, English), automatyczne szukanie w katalogu, trzy czasy odliczania i włączenie moda. Zmiany zapisują się od razu i obowiązują w kolejnych sesjach.
+
 ## Komendy
 
+- `/router` – otwiera panel ustawień
 - `/router on|off` – włącza lub wyłącza mod
 - `/router czas <baza> <na propozycję>` – czas odliczania w sekundach (działa też `time`)
 - `/router auto on|off` – automatyczne szukanie w katalogu, gdy zadanie wymaga zewnętrznego narzędzia

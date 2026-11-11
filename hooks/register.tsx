@@ -9,6 +9,7 @@ import { LANG_NAME, LOCALE, num, t, toLang, type Key, type Lang, type LangSettin
 
 const PLUGIN = 'skill-router'
 const PANE = 'skill-router'
+const SETTINGS = 'skill-router-settings'
 // Gdy router uzna prompt za niejasny, odliczanie wydłuża się o tyle sekund na decyzję o poprawie.
 const IMPROVE_EXTRA = 10
 
@@ -23,6 +24,8 @@ const currentEffort = atom({ plugin: 'skill-router', key: 'currentEffort' } as c
 const external = atom({ plugin: 'skill-router', key: 'external' } as const, [] as ExternalItem[], { shape: 'ext-2' })
 const searching = atom({ plugin: 'skill-router', key: 'searching' } as const, false)
 const improveOpen = atom({ plugin: 'skill-router', key: 'improveOpen' } as const, false)
+// Licznik zmian ustawień: zapis podbija go, a panel ustawień rysuje się od nowa.
+const settingsRev = atom({ plugin: 'skill-router', key: 'settingsRev' } as const, 0)
 
 type Settings = { enabled: boolean; base: number; per: number; modelWait: number; auto: boolean; lang: LangSetting }
 const DEFAULTS: Settings = { enabled: true, base: 15, per: 5, modelWait: 15, auto: true, lang: 'auto' }
@@ -303,6 +306,21 @@ async function acceptAndSend($: EngineInterface) {
   await send($, p.plan ? 'plan' : 'default')
 }
 
+// Zmiana z panelu ustawień: zapis na stałe i odświeżenie widoków. Ręcznie wybrany język obowiązuje od razu.
+async function applySetting($: EngineInterface, patch: Partial<Settings>) {
+  settings = { ...settings, ...patch }
+  await $.store.set('settings', settings)
+  const fixed = settings.lang
+  if (patch.lang && fixed !== 'auto') await update($, pending, cur => (cur ? { ...cur, lang: fixed } : cur))
+  await update($, settingsRev, n => n + 1)
+}
+
+// Panel ustawień: z /router bez argumentów albo przyciskiem ⚙. Gdy prompt czeka, odliczanie staje.
+async function openSettings($: EngineInterface) {
+  if (await read($, pending)) await update($, paused, () => true)
+  await $.ui.open({ id: SETTINGS, title: t(fallbackLang(), 'settings_title') })
+}
+
 async function tick($: EngineInterface) {
   const p = await read($, pending)
   if (!p) return
@@ -456,6 +474,10 @@ export const register: Register = on => {
 
   on('command.run', { command: 'router' }, async ($, e) => {
     const args = String(e.args ?? '').trim().split(/\s+/).filter(Boolean)
+    if (args.length === 0) {
+      await openSettings($)
+      return { text: stateText() }
+    }
     if (args[0] === 'stack') {
       const list = String(e.args ?? '').trim().replace(/^stack\s*/, '')
       await $.store.set('stack', list)
@@ -601,6 +623,74 @@ export const register: Register = on => {
     return { drop: t(lang, hasPane ? 'drop_pane' : 'drop_bar') }
   }).catch(($, e, next) => next(e)) // błąd routera nigdy nie blokuje prompta
 
+  // Panel ustawień: język, automatyczne szukanie, czasy odliczania i włączenie moda. Zapis od razu.
+  on('ui.render', { component: 'Pane', requestId: SETTINGS }, async ($, e) => {
+    await read($, settingsRev)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const lang = fallbackLang()
+    const L = (key: Key, vars?: Record<string, string | number>) => t(lang, key, vars)
+    const pick = (key: string, label: string, isOn: boolean, onPress: () => void, hotkey?: string) => (
+      <Button key={key} hotkey={hotkey} variant={isOn ? 'primary' : 'secondary'} label={label} onPress={onPress} />
+    )
+    type TimeKey = 'base' | 'per' | 'modelWait'
+    const stepper = (id: TimeKey, label: string, step: number, min: number, max: number) => (
+      <Box key={`row-${id}`} flexDirection="row" alignItems="center" gap={1}>
+        <Box flexGrow={1}>
+          <Text size="caption">{label}</Text>
+        </Box>
+        <Button key={`${id}-dec`} variant="secondary" label="−" onPress={() => void applySetting($, { [id]: Math.max(min, settings[id] - step) } as Partial<Settings>)} />
+        <Box width={6}>
+          <Text bold>{L('secs', { n: settings[id] })}</Text>
+        </Box>
+        <Button key={`${id}-inc`} variant="secondary" label="+" onPress={() => void applySetting($, { [id]: Math.min(max, settings[id] + step) } as Partial<Settings>)} />
+      </Box>
+    )
+    return (
+      <Box flexDirection="column" paddingX={1} gap={1}>
+        <Text color="claude" bold>
+          {L('settings_title')}
+        </Text>
+        <Box flexDirection="column">
+          <Text bold>{L('set_lang')}</Text>
+          <Box flexDirection="row" gap={1}>
+            {pick('lang-auto', 'Auto', settings.lang === 'auto', () => void applySetting($, { lang: 'auto' }), '1')}
+            {pick('lang-pl', 'Polski', settings.lang === 'pl', () => void applySetting($, { lang: 'pl' }), '2')}
+            {pick('lang-en', 'English', settings.lang === 'en', () => void applySetting($, { lang: 'en' }), '3')}
+          </Box>
+          <Text size="caption" dimColor>
+            {L('set_lang_hint')}
+          </Text>
+        </Box>
+        <Box flexDirection="row" alignItems="center" gap={1}>
+          <Box flexGrow={1}>
+            <Text bold>{L('set_search')}</Text>
+          </Box>
+          {pick('search-on', L('btn_on'), settings.auto, () => void applySetting($, { auto: true }))}
+          {pick('search-off', L('btn_off'), !settings.auto, () => void applySetting($, { auto: false }))}
+        </Box>
+        <Box flexDirection="column">
+          <Text bold>{L('set_times')}</Text>
+          {stepper('base', L('set_base'), 5, 5, 120)}
+          {stepper('per', L('set_per'), 1, 1, 30)}
+          {stepper('modelWait', L('set_model'), 5, 5, 120)}
+        </Box>
+        <Box flexDirection="row" alignItems="center" gap={1}>
+          <Box flexGrow={1}>
+            <Text bold>{L('set_enabled')}</Text>
+          </Box>
+          {pick('mod-on', L('btn_on'), settings.enabled, () => void applySetting($, { enabled: true }))}
+          {pick('mod-off', L('btn_off'), !settings.enabled, () => void applySetting($, { enabled: false }))}
+        </Box>
+        <Text size="caption" dimColor>
+          {L('set_saved')}
+        </Text>
+        <Box flexDirection="row" justifyContent="flex-end">
+          <Button key="close" hotkey="q" variant="secondary" label={L('btn_close')} onPress={() => void $.ui.close({ id: SETTINGS })} />
+        </Box>
+      </Box>
+    )
+  })
+
   // Pasek nad polem: model w stylu karty, wysyłka i Wznów. Zaznaczenia są w panelu bocznym.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const p = await read($, pending)
@@ -693,6 +783,7 @@ export const register: Register = on => {
             {isPaused ? L('timer_paused') : L('timer_left', { n: left })}
           </Text>
           <Button key="pause" hotkey="p" label={L(isPaused ? 'btn_resume' : 'btn_pause')} onPress={() => void update($, paused, v => !v)} />
+          <Button key="settings" hotkey="u" variant="secondary" label="⚙" onPress={() => void openSettings($)} />
         </Box>
         {picked > 0 && (
           <Text size="caption" color="success">

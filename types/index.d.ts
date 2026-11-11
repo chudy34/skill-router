@@ -74,6 +74,7 @@ declare module 'claude-code' {
       note: string
       currentEffort: string | null
       improveOpen: boolean
+      settingsRev: number
     }
   }
 }

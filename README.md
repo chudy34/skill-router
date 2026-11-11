@@ -29,6 +29,7 @@ After you press Enter, a short countdown starts. Inside it you can:
 | Improve the prompt | `o` | Opens a before/after view above the input |
 | Skills panel | `s` | Opens the side panel when it did not open by itself, e.g. to search the catalog |
 | Pause / resume | `p` | Stops or restarts the countdown |
+| Settings | `u` | Opens the settings panel (the ⚙ button) |
 
 When the countdown runs out, the prompt is sent as is (`b`). The timing defaults are 15 s for the model decision, 15 s plus 5 s per suggestion otherwise, and +10 s when a prompt improvement is offered.
 
@@ -44,8 +45,13 @@ Set it by hand with `/router lang pl`, `/router lang en` or back to `/router lan
 
 Another language is one more dictionary in `hooks/i18n.ts` with the same keys.
 
+## Settings
+
+Run `/router` with no arguments, or press ⚙ in the bar, to open the settings panel. There you set the language (Auto, Polski, English), automatic catalog search, the three countdown times and whether the mod is on. Changes save right away and apply to later sessions.
+
 ## Commands
 
+- `/router` – opens the settings panel
 - `/router on|off` – enable or disable the mod
 - `/router time <base> <per suggestion>` – countdown in seconds (`czas` works too)
 - `/router auto on|off` – automatic catalog search when a task needs an external tool
