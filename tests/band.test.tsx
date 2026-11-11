@@ -14,6 +14,7 @@ const PENDING = {
   limits: [{ kind: 'five_hour', percentUsed: 72, resetsAt: '2026-11-08T16:40:00Z' }],
   contextTokens: 0,
   improve: null,
+  lang: 'pl',
 }
 
 const BAND = {
@@ -26,7 +27,7 @@ const BAND = {
 test('pasek pokazuje nazwę konektora i tag użycia bezpośredniego', async ($, on) => {
   on('state.get', ($, e, next) =>
     (e as { key?: string }).key === 'pending'
-      ? { value: { value: { shape: 'pending-4', value: PENDING }, version: 1 } }
+      ? { value: { value: { shape: 'pending-5', value: PENDING }, version: 1 } }
       : next(e),
   )
 
@@ -43,7 +44,7 @@ test('pasek pokazuje nazwę konektora i tag użycia bezpośredniego', async ($, 
 test('pasek nad polem ma przyciski wysyłki i zaznaczenia z panelu', async ($, on) => {
   on('state.get', ($, e, next) =>
     (e as { key?: string }).key === 'pending'
-      ? { value: { value: { shape: 'pending-4', value: PENDING }, version: 1 } }
+      ? { value: { value: { shape: 'pending-5', value: PENDING }, version: 1 } }
       : next(e),
   )
   const ui = await $.ui.mount({

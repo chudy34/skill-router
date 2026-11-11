@@ -43,6 +43,8 @@ export type Pending = {
   contextTokens: number
   needsSearch: boolean
   improve: Improve | null
+  // Język interfejsu dla tego promptu: ustawiony ręcznie albo wykryty z promptu.
+  lang: 'pl' | 'en'
 }
 
 // Kandydat z katalogu zewnętrznego wraz z wynikiem audytu.

@@ -36,14 +36,19 @@ Panel boczny otwiera się tylko wtedy, gdy jest w nim coś do wyboru: propozycje
 
 ## Język
 
-Interfejs, uzasadnienia i opisy poprawek są po polsku. Inne języki nie są jeszcze obsługiwane. Sam poprawiony prompt zachowuje język, w którym go napisałeś.
+Mod mówi po polsku i po angielsku. Domyślnie (`auto`) dopasowuje się do języka każdego promptu: piszesz po polsku, to pasek, panel i uzasadnienia są po polsku; piszesz po angielsku, to są po angielsku. Przy prompcie w innym języku uzasadnienia od modeli idą w tym języku, a interfejs bierze język systemu, a gdy go nie zna, angielski. Poprawiony prompt zawsze zachowuje język, w którym go napisałeś.
+
+Ręcznie: `/router lang pl`, `/router lang en` albo z powrotem `/router lang auto`. Język aplikacji Claude nie ma znaczenia, bo mod rysuje własne napisy.
+
+Kolejny język to jeden słownik więcej w `hooks/i18n.ts` z tymi samymi kluczami.
 
 ## Komendy
 
 - `/router on|off` – włącza lub wyłącza mod
-- `/router czas <baza> <na propozycję>` – czas odliczania w sekundach
+- `/router czas <baza> <na propozycję>` – czas odliczania w sekundach (działa też `time`)
 - `/router auto on|off` – automatyczne szukanie w katalogu, gdy zadanie wymaga zewnętrznego narzędzia
 - `/router stack <technologie>` – Twój stack, np. `Next.js, Supabase`, używany przy ocenie propozycji
+- `/router lang pl|en|auto` – język interfejsu; `auto` dopasowuje się do każdego promptu
 
 ## Wymagania
 

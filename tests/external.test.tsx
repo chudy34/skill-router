@@ -20,6 +20,7 @@ const PENDING = {
   contextTokens: 0,
   improve: null,
   needsSearch: false,
+  lang: 'pl',
 }
 
 const PANE = {
@@ -32,7 +33,7 @@ const PANE = {
 test('wynik wyszukiwania pojawia się w panelu po kliknięciu', async ($, on) => {
   on('state.get', ($, e, next) =>
     (e as { key?: string }).key === 'pending'
-      ? { value: { value: { shape: 'pending-4', value: PENDING }, version: 1 } }
+      ? { value: { value: { shape: 'pending-5', value: PENDING }, version: 1 } }
       : next(e),
   )
   on('store.get', () => ({ value: undefined }))

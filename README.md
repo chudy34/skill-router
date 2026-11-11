@@ -13,7 +13,7 @@ Selected skills and connectors are added as context only for the message you sen
 
 <img src="docs/side-panel.png" alt="Side panel with an installed MCP suggestion and a scanned external skill" width="320">
 
-The screenshots show the Polish interface.
+The screenshots show the Polish interface; the English one has the same layout.
 
 Polish version: [README.pl.md](README.pl.md)
 
@@ -38,14 +38,19 @@ The side panel opens only when it has something to choose: skill or MCP suggesti
 
 ## Language
 
-The interface, the explanations and the improved prompts' notes are in Polish. Other languages are not supported yet. The improved prompt itself keeps the language you wrote in.
+The mod speaks Polish and English. By default (`auto`) it follows the language of each prompt: write in Polish and the bar, the panel and the explanations are in Polish; write in English and they are in English. For a prompt in another language, the explanations from the models follow that language and the interface falls back to your system language, then to English. The improved prompt always keeps the language you wrote in.
+
+Set it by hand with `/router lang pl`, `/router lang en` or back to `/router lang auto`. The language of the Claude app does not matter: the mod draws its own text.
+
+Another language is one more dictionary in `hooks/i18n.ts` with the same keys.
 
 ## Commands
 
 - `/router on|off` – enable or disable the mod
-- `/router czas <base> <per suggestion>` – countdown in seconds
+- `/router time <base> <per suggestion>` – countdown in seconds (`czas` works too)
 - `/router auto on|off` – automatic catalog search when a task needs an external tool
 - `/router stack <technologies>` – your stack, e.g. `Next.js, Supabase`, used when ranking suggestions
+- `/router lang pl|en|auto` – interface language; `auto` follows each prompt
 
 ## Requirements
 

@@ -11,6 +11,7 @@ const PENDING = {
   limits: [],
   contextTokens: 0,
   needsSearch: false,
+  lang: 'pl',
   improve: {
     why: 'Brak celu i zakresu, dopisano je.',
     status: 'ready',
@@ -30,7 +31,7 @@ const PROPS = {
 
 const stateWith = (open: boolean) => (_$: unknown, e: unknown, next: (e: unknown) => unknown) => {
   const key = (e as { key?: string }).key
-  if (key === 'pending') return { value: { value: { shape: 'pending-4', value: PENDING }, version: 1 } }
+  if (key === 'pending') return { value: { value: { shape: 'pending-5', value: PENDING }, version: 1 } }
   if (key === 'improveOpen') return { value: { value: open, version: 1 } }
   return next(e)
 }
