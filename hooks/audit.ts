@@ -61,12 +61,33 @@ async function modelReview($: EngineInterface, text: string): Promise<{ verdict:
   }
 }
 
+async function rawFile($: EngineInterface, c: Candidate, path: string): Promise<string | null> {
+  const res = await $.http.fetch(`https://raw.githubusercontent.com/${c.owner}/${c.repo}/HEAD/${path}`)
+  return res.ok && res.text.length > 0 ? res.text.slice(0, 60000) : null
+}
+
+// Najpierw dwie typowe ścieżki, potem drzewo repozytorium z API GitHuba
+// (bez logowania: 60 zapytań na godzinę), bo repozytoria trzymają skille w różnych miejscach.
 export async function fetchSkillMd($: EngineInterface, c: Candidate): Promise<string | null> {
   for (const path of [`skills/${c.skill}/SKILL.md`, `${c.skill}/SKILL.md`]) {
-    const res = await $.http.fetch(`https://raw.githubusercontent.com/${c.owner}/${c.repo}/HEAD/${path}`)
-    if (res.ok && res.text.length > 0) return res.text.slice(0, 60000)
+    const text = await rawFile($, c, path)
+    if (text) return text
   }
-  return null
+  const tree = await $.http.fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/git/trees/HEAD?recursive=1`, {
+    headers: { Accept: 'application/vnd.github+json' },
+  })
+  if (!tree.ok) return null
+  let paths: string[] = []
+  try {
+    const j = JSON.parse(tree.text) as { tree?: { path?: unknown }[] }
+    paths = (j.tree ?? [])
+      .map(x => (typeof x.path === 'string' ? x.path : ''))
+      .filter(p => p.endsWith(`/${c.skill}/SKILL.md`))
+  } catch {
+    return null
+  }
+  const best = paths.sort((a, b) => a.length - b.length)[0]
+  return best ? rawFile($, c, best) : null
 }
 
 // Brak oceny modelu nigdy nie daje „ok”: wtedy co najmniej ostrzeżenie.

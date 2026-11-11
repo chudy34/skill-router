@@ -54,7 +54,7 @@ export type ExternalItem = {
   installs: number
   url: string
   score: number
-  verdict: 'ok' | 'warn' | 'block' | 'pending'
+  verdict: 'ok' | 'warn' | 'block' | 'pending' | 'unchecked'
   reasons: string[]
   content: string | null
 }

@@ -9,6 +9,12 @@ A Claude Code mod that looks at your prompt **before** it is sent and shows what
 
 Selected skills and connectors are added as context only for the message you send. Nothing is installed without your consent.
 
+![The bar above the input: model choice, a prompt improvement hint and send options](docs/model-bar.png)
+
+<img src="docs/side-panel.png" alt="Side panel with an installed MCP suggestion and a scanned external skill" width="320">
+
+The screenshots show the Polish interface.
+
 Polish version: [README.pl.md](README.pl.md)
 
 ## How it works
@@ -27,6 +33,12 @@ After you press Enter, a short countdown starts. Inside it you can:
 When the countdown runs out, the prompt is sent as is (`b`). The timing defaults are 15 s for the model decision, 15 s plus 5 s per suggestion otherwise, and +10 s when a prompt improvement is offered.
 
 In the improvement view: `x` rejects, `a` accepts the improved text, and `w` accepts it and sends it with the suggested model.
+
+The side panel opens only when it has something to choose: skill or MCP suggestions, or catalog search results. When only the model choice or a prompt improvement is on offer, everything stays in the bar above the input. Press `s` to open the panel by hand, for example to search the catalog.
+
+## Language
+
+The interface, the explanations and the improved prompts' notes are in Polish. Other languages are not supported yet. The improved prompt itself keeps the language you wrote in.
 
 ## Commands
 

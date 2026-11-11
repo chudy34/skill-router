@@ -9,6 +9,10 @@ Mod do Claude Code. Zanim prompt zostanie wysłany, sprawdza, czego zadanie potr
 
 Wybrane skille i konektory trafiają do modelu jako kontekst tylko do wiadomości, którą wysyłasz. Nic nie jest instalowane bez Twojej zgody.
 
+![Pasek nad polem: wybór modelu, podpowiedź poprawy promptu i opcje wysyłki](docs/model-bar.png)
+
+<img src="docs/side-panel.png" alt="Panel boczny z propozycją zainstalowanego MCP i sprawdzonym zewnętrznym skillem" width="320">
+
 English version: [README.md](README.md)
 
 ## Jak to działa
@@ -27,6 +31,12 @@ Po naciśnięciu Enter rusza krótkie odliczanie. W jego trakcie możesz:
 Po upływie czasu prompt idzie bez zmian (jak `b`). Domyślne czasy: 15 s na decyzję o modelu, 15 s plus 5 s za każdą propozycję w pozostałych przypadkach, a przy proponowanej poprawie dodatkowe 10 s.
 
 W widoku poprawy: `x` odrzuca, `a` przyjmuje poprawiony tekst, a `w` przyjmuje go i wysyła z proponowanym modelem.
+
+Panel boczny otwiera się tylko wtedy, gdy jest w nim coś do wyboru: propozycje skilli lub MCP albo wyniki z katalogu. Gdy w grę wchodzi tylko wybór modelu albo poprawa promptu, wszystko zostaje w pasku nad polem. Klawisz `s` otwiera panel ręcznie, np. żeby szukać w katalogu.
+
+## Język
+
+Interfejs, uzasadnienia i opisy poprawek są po polsku. Inne języki nie są jeszcze obsługiwane. Sam poprawiony prompt zachowuje język, w którym go napisałeś.
 
 ## Komendy
 

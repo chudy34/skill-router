@@ -19,7 +19,7 @@ const paused = atom({ plugin: 'skill-router', key: 'paused' } as const, false)
 const now = atom({ plugin: 'skill-router', key: 'now' } as const, 0)
 const sessionModel = atom({ plugin: 'skill-router', key: 'sessionModel' } as const, null)
 const currentEffort = atom({ plugin: 'skill-router', key: 'currentEffort' } as const, null as string | null)
-const external = atom({ plugin: 'skill-router', key: 'external' } as const, [] as ExternalItem[], { shape: 'ext-1' })
+const external = atom({ plugin: 'skill-router', key: 'external' } as const, [] as ExternalItem[], { shape: 'ext-2' })
 const searching = atom({ plugin: 'skill-router', key: 'searching' } as const, false)
 const improveOpen = atom({ plugin: 'skill-router', key: 'improveOpen' } as const, false)
 
@@ -79,6 +79,14 @@ function parseJson(text: string): unknown {
 
 function str(v: unknown, max = 160): string {
   return typeof v === 'string' ? v.slice(0, max) : ''
+}
+
+// Skraca tekst na granicy słowa i dodaje wielokropek, żeby nie ucinać w pół słowa.
+function clip(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max - 1)
+  const at = cut.lastIndexOf(' ')
+  return (at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,.;:]+$/, '') + '…'
 }
 
 function pl(n: number): string {
@@ -405,7 +413,7 @@ async function runSearchInner($: EngineInterface, query: string) {
     const text = texts.get(ranked[i]!.key) ?? null
     if (text === null) {
       await update($, external, cur =>
-        cur.map((x): ExternalItem => (x.id === it.id ? { ...x, verdict: 'block' as const, reasons: ['nie udało się pobrać SKILL.md'] } : x)),
+        cur.map((x): ExternalItem => (x.id === it.id ? { ...x, verdict: 'unchecked' as const, reasons: ['nie znaleziono SKILL.md w repozytorium'] } : x)),
       )
       continue
     }
@@ -725,7 +733,7 @@ export const register: Register = on => {
             </Box>
           </Box>
         )}
-        {p.improve && p.improve.why !== '' && <Text size="caption">{p.improve.why.slice(0, 160)}</Text>}
+        {p.improve && p.improve.why !== '' && <Text size="caption">{clip(p.improve.why, 160)}</Text>}
         <Box flexDirection="row" alignItems="center" gap={1} marginTop={1}>
           {p.improve && (
             <Text bold color="warning">
@@ -847,8 +855,8 @@ export const register: Register = on => {
           </Text>
         )}
         {extItems.map((x, i) => {
-          const c = x.verdict === 'block' ? 'warning' : x.verdict === 'ok' ? 'success' : 'warning'
-          const label = x.verdict === 'pending' ? 'sprawdzam…' : x.verdict === 'ok' ? 'skan OK' : x.verdict === 'warn' ? 'uwaga' : 'zablokowany'
+          const c = x.verdict === 'ok' ? 'success' : x.verdict === 'unchecked' ? 'inactive' : 'warning'
+          const label = x.verdict === 'pending' ? 'sprawdzam…' : x.verdict === 'ok' ? 'skan OK' : x.verdict === 'warn' ? 'uwaga' : x.verdict === 'unchecked' ? 'nie sprawdzono' : 'zablokowany'
           const isOn = sel.includes(x.id)
           return (
             <Box key={`ext-${x.id}`} flexDirection="column" paddingX={1} borderStyle="round" borderColor="warning">
@@ -864,7 +872,7 @@ export const register: Register = on => {
                   {x.installs.toLocaleString('pl-PL')} inst.
                 </Text>
               </Box>
-              {x.verdict !== 'block' && x.verdict !== 'pending' ? (
+              {x.verdict === 'ok' || x.verdict === 'warn' ? (
                 <Button key={`pick-${x.id}`} plain hotkey={String(p.suggestions.length + i + 1)} onPress={toggle(x.id)}>
                   <Text color={isOn ? 'success' : 'inactive'} bold>
                     {isOn ? '☑ ' : '☐ '}
